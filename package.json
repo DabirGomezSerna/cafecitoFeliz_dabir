@@ -3,11 +3,34 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/material": "^9.4.0",
+    "axios": "^1.20.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "mongoose": "^9.9.5",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router": "^7.18.3"
-  }
+  },
+  "name": "cafecitofeliz_dabir",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "seed": "node backend/scripts/seed.js",
+    "start-back": "node backend/server.js",
+    "start-front":"react-scripts start"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DabirGomezSerna/cafecitoFeliz_dabir.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/DabirGomezSerna/cafecitoFeliz_dabir/issues"
+  },
+  "homepage": "https://github.com/DabirGomezSerna/cafecitoFeliz_dabir#readme"
 }
