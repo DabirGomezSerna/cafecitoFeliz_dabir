@@ -1,4 +1,4 @@
-import Sale from "../models/Sale";
+import Sale from "../models/Sale.js";
 
 const getSaleById = async (req, res, next) => {
   try {
@@ -51,3 +51,5 @@ const createSale = async (req, res, next) => {
     next(error);
   }
 };
+
+export {getSaleById,createSale}

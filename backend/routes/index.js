@@ -1,5 +1,4 @@
 import express from "express";
-
 import productRoutes from "./productRoutes.js";
 import clientRoutes from "./clientRoutes.js";
 import saleRoutes from "./saleRoutes.js";
