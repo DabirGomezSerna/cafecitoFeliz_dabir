@@ -13,7 +13,7 @@
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import connectDB from "../config/db.config.js";
-import User from "../models/User.js";
+import Client from "../models/Client.js";
 import Product from "../models/Product.js";
 
 dotenv.config();
@@ -33,10 +33,10 @@ const log = {
 };
 
 // ---------------------------------------------------------------------------
-// Seed data — Users
+// Seed data — Clients
 // ---------------------------------------------------------------------------
 
-const USERS = [
+const CLIENTS = [
   {
     displayName: "Maxwell Dobron",
     email: "maxwell.dob@gmail.com",
@@ -59,7 +59,6 @@ const USERS = [
 // ---------------------------------------------------------------------------
 
 const PRODUCTS = [
-  // Laptops
   {
     name: "Macha latte",
     description:
@@ -101,27 +100,27 @@ const PRODUCTS = [
 // Seed functions
 // ---------------------------------------------------------------------------
 
-async function seedUsers() {
-  log.section("Users");
+async function seedClients() {
+  log.section("Clients");
   const results = {};
 
-  for (const userData of USERS) {
-    const existing = await User.findOne({ email: userData.email });
+  for (const clientData of CLIENTS) {
+    const existing = await Client.findOne({ email: clientData.email });
 
     if (existing) {
-      log.skipped("user", userData.email);
-      results[userData.email] = existing;
+      log.skipped("client", clientData.email);
+      results[clientData.email] = existing;
       continue;
     }
 
-    const user = await User.create({
-      displayName: userData.displayName,
-      email: userData.email,
-      purchases: userData.purchases,
+    const client = await Client.create({
+      displayName: clientData.displayName,
+      email: clientData.email,
+      purchases: clientData.purchases,
     });
 
-    log.created("user", `${userData.email} [${userData.displayName}]`);
-    results[userData.email] = user;
+    log.created("client", `${clientData.email} [${clientData.displayName}]`);
+    results[clientData.email] = client;
   }
 
   return results;
@@ -161,13 +160,13 @@ async function resetCollections() {
   // (user-generated data should not be wiped by default reset)
   const result = {
     products: await Product.deleteMany({}),
-    users: await User.deleteMany({}),
+    clients: await Client.deleteMany({}),
   };
 
   console.log(
     `  [!] Deleted: ${result.products.deletedCount} products, ` +
       `${result.categories.deletedCount} categories, ` +
-      `${result.users.deletedCount} users`,
+      `${result.clients.deletedCount} clients`,
   );
 }
 
@@ -178,15 +177,15 @@ async function resetCollections() {
 async function printSummary() {
   log.section("Summary");
 
-  const [userCount, productCount] = await Promise.all([
-    User.countDocuments(),
+  const [clientCount, productCount] = await Promise.all([
+    Client.countDocuments(),
     Product.countDocuments(),
   ]);
 
-  console.log(`  Users:      ${userCount}`);
+  console.log(`  Clients:      ${clientCount}`);
   console.log(`  Products:   ${productCount}`);
 
-  const admin = await User.findOne({ role: "admin" }).select(
+  const admin = await Client.findOne({ role: "admin" }).select(
     "displayName email role",
   );
   if (admin) {
@@ -209,7 +208,7 @@ async function seed() {
     await resetCollections();
   }
 
-  await seedUsers();
+  await seedClients();
   await seedProducts();
   await printSummary();
 
