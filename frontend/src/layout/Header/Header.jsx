@@ -106,19 +106,8 @@ export default function Header() {
               Cafecito Feliz
             </Link>
 
-            {/* Admin navigation */}
-            {isAdmin && (
-              <nav className="header-nav desktop-only">
-                <Link to="/admin/products" className="header-nav-link">
-                  <Icon name="package" size={18} />
-                  <span>Productos</span>
-                </Link>
-                <Link to="/admin/sales" className="header-nav-link">
-                  <Icon name="fileText" size={18} />
-                  <span>Ventas</span>
-                </Link>
-              </nav>
-            )}
+            {/* The admin's Productos and Ventas links live only in the user
+                dropdown below — the header bar stays uncluttered. */}
 
             <div className="header-actions">
               {/* The cart is a staff tool, so it only appears once signed in. */}

@@ -440,38 +440,6 @@ header {
   line-height: 1;
 }
 
-/* Navigation */
-.header-nav {
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-}
-
-.nav-list {
-  display: flex;
-  align-items: center;
-  gap: 32px;
-  margin: 0;
-  padding: 12px 0;
-  list-style: none;
-}
-
-.nav-list a {
-  color: var(--text);
-  text-decoration: none;
-  font-weight: 500;
-  font-size: 14px;
-  transition: color 0.2s;
-}
-
-.nav-list a:hover {
-  color: var(--accent);
-}
-
-.nav-list a.highlight {
-  color: var(--danger);
-  font-weight: 600;
-}
-
 /* Responsive */
 @media (max-width: 768px) {
   .header-content {
