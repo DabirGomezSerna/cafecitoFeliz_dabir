@@ -6,20 +6,30 @@ import {
   deleteProduct,
 } from "../controllers/productController.js";
 import validateObjectId from "../middleware/validateObjectId.js";
+import { requireAuth, requireRole } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// Auth is mounted in a later phase. Intended permissions:
-//   GET    /products      public
-//   POST   /products      admin only
-//   PUT    /products/:id  admin only
-//   DELETE /products/:id  admin only
+// Browsing the menu is public — the Home page is the one unauthenticated screen.
 router.get("/products", getProduct);
 
-router.post("/products", createProduct);
+// Managing the catalogue is an administrator's job.
+router.post("/products", requireAuth, requireRole("admin"), createProduct);
 
-router.put("/products/:id", validateObjectId("id"), updateProduct);
+router.put(
+  "/products/:id",
+  requireAuth,
+  requireRole("admin"),
+  validateObjectId("id"),
+  updateProduct,
+);
 
-router.delete("/products/:id", validateObjectId("id"), deleteProduct);
+router.delete(
+  "/products/:id",
+  requireAuth,
+  requireRole("admin"),
+  validateObjectId("id"),
+  deleteProduct,
+);
 
 export default router;

@@ -16,6 +16,7 @@ import mongoose from "mongoose";
 import connectDB from "../config/db.config.js";
 import Client from "../models/Client.js";
 import Product from "../models/Product.js";
+import User from "../models/User.js";
 
 dotenv.config();
 
@@ -49,6 +50,24 @@ const CLIENTS = [
   { display_name: "Lucia Herrera", email: "lucia.herrera@example.com", purchases: 9 },
 ];
 
+/**
+ * The bootstrap administrator.
+ *
+ * This is the ONLY way an admin account comes into existence: POST
+ * /api/auth/register always forces the "vendor" role, so nothing in the running
+ * application can create one. Promoting an existing user later is a deliberate
+ * manual step — see the ReadMe.
+ *
+ * The password is read from SEED_ADMIN_PASSWORD when set. The default below is a
+ * development convenience and must be changed before this is exposed to anything
+ * beyond a local machine.
+ */
+const ADMIN = {
+  display_name: process.env.SEED_ADMIN_NAME || "Administrador",
+  email: (process.env.SEED_ADMIN_EMAIL || "admin@cafecitofeliz.com").toLowerCase(),
+  password: process.env.SEED_ADMIN_PASSWORD || "Admin1234!",
+};
+
 const PRODUCTS = [
   { name: "Macha latte", description: "Te macha con leche", price: 149.99, stock: 15 },
   { name: "Cafe Espresso", description: "Cafe espresso clasico.", price: 199.99, stock: 10 },
@@ -60,6 +79,25 @@ const PRODUCTS = [
 // ---------------------------------------------------------------------------
 // Seed functions
 // ---------------------------------------------------------------------------
+
+async function seedAdmin() {
+  log.section("Staff");
+
+  const existing = await User.findOne({ email: ADMIN.email });
+
+  if (existing) {
+    log.skipped("admin", `${ADMIN.email} (role: ${existing.role})`);
+    return;
+  }
+
+  // Must go through .create() so the model's pre("save") hook hashes the
+  // password. An updateOne or insertMany here would store it in plaintext.
+  await User.create({ ...ADMIN, role: "admin" });
+
+  log.created("admin", ADMIN.email);
+  console.log(`      password: ${ADMIN.password}`);
+  console.log("      ^ change this before deploying anywhere real");
+}
 
 async function seedClients() {
   log.section("Clients");
@@ -121,13 +159,16 @@ async function resetCollections() {
 async function printSummary() {
   log.section("Summary");
 
-  const [clientCount, productCount] = await Promise.all([
+  const [clientCount, productCount, adminCount, vendorCount] = await Promise.all([
     Client.countDocuments(),
     Product.countDocuments(),
+    User.countDocuments({ role: "admin" }),
+    User.countDocuments({ role: "vendor" }),
   ]);
 
   console.log(`  Clients:  ${clientCount}`);
   console.log(`  Products: ${productCount}`);
+  console.log(`  Staff:    ${adminCount} admin, ${vendorCount} vendor`);
   console.log("\n  Seed completed successfully.\n");
 }
 
@@ -142,6 +183,7 @@ async function seed() {
     await resetCollections();
   }
 
+  await seedAdmin();
   await seedClients();
   await seedProducts();
   await printSummary();
