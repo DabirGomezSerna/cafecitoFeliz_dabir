@@ -11,6 +11,8 @@ import Register from "../../pages/Register/Register";
 import Cart from "../../pages/Cart/Cart";
 import Checkout from "../../pages/Checkout/Checkout";
 import Ticket from "../../pages/Ticket/Ticket";
+import AdminProducts from "../../pages/Admin/AdminProducts/AdminProducts";
+import AdminSales from "../../pages/Admin/AdminSales/AdminSales";
 import NotFound from "../../pages/NotFound/NotFound";
 
 import "./App.css";
@@ -60,6 +62,25 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Ticket />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Admin only. The API enforces this independently — the route
+                  guard is for the UI, not the security boundary. */}
+              <Route
+                path="/admin/products"
+                element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminProducts />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/sales"
+                element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <AdminSales />
                   </ProtectedRoute>
                 }
               />
