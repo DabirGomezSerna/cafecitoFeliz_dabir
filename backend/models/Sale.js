@@ -43,6 +43,19 @@ const saleSchema = new mongoose.Schema(
           required: true,
           min: 0,
         },
+        /**
+         * price * quantity, computed and stored by the server.
+         *
+         * Stored rather than derived so that nothing downstream — a ticket, an
+         * admin report, an export — ever has to multiply money itself. The
+         * frontend must be able to render a complete receipt using only fields it
+         * was given.
+         */
+        line_total: {
+          type: Number,
+          required: true,
+          min: 0,
+        },
       },
     ],
     /** Sum of the line totals, before the loyalty discount. */

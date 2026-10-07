@@ -1,319 +1,268 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
 import CartView from "../../components/Cart/CartView";
-import AddressForm from "../../components/Checkout/Address/AddressForm";
-import AddressList from "../../components/Checkout/Address/AddressList";
+import ClientPicker from "../../components/Sale/ClientPicker/ClientPicker";
 import SummarySection from "../../components/Checkout/SummarySection/SummarySection";
 import Button from "../../components/common/Button";
 import ErrorMessage from "../../components/common/ErrorMessage/ErrorMessage";
-import Loading from "../../components/common/Loading/Loading";
+import Icon from "../../components/common/Icon/Icon";
 import { useCart } from "../../context/CartContext";
+import { quoteSale, createSale } from "../../services/saleServices";
+import { cartToItems } from "../../utils/cart";
+import { formatMoney, formatPercent } from "../../utils/money";
 import "./Checkout.css";
 
-//REMOVE BOTH THESE FUNCTIONS LATER
-const getDefaultShippingAddress = () => {};
-const getShippingAddresses = () => {};
-
+/**
+ * The sale screen.
+ *
+ * Two steps: identify the customer (optional), then confirm. There is no shipping
+ * address, no tax line and no delivery estimate — this is an in-store café till,
+ * and those were inherited from the e-commerce project this UI came from.
+ *
+ * Every monetary figure on this page comes from `quote`, the backend's response to
+ * POST /api/sales/quote. Nothing here multiplies or sums money.
+ */
 export default function Checkout() {
   const navigate = useNavigate();
-  // Contexto global del carrito
-  const { cartItems, total, clearCart } = useCart();
+  const { cartItems, clearCart } = useCart();
 
-  // Estados para direcciones y métodos de pago
-  const [addresses, setAddresses] = useState([]);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [quote, setQuote] = useState(null);
+  const [quoteError, setQuoteError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
-  // Estados para control de componentes
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [clientSectionOpen, setClientSectionOpen] = useState(true);
 
-  // Estados para mantener el valor de las dirección o método de pago seleccionado
-  const [selectedAddress, setSelectedAddress] = useState(null);
+  /**
+   * Set once the sale is committed.
+   *
+   * clearCart() empties the cart, which re-runs the empty-cart redirect below and
+   * would race the navigation to the ticket. A ref rather than state because the
+   * guard must see the new value immediately, in the same tick — the previous
+   * implementation used state and then omitted it from the dependency array, so it
+   * always read a stale value.
+   */
+  const submittedRef = useRef(false);
 
-  // Control visual del componente de direcciones
-  const [showAddressForm, setShowAddressForm] = useState(false);
-  const [addressSectionOpen, setAddressSectionOpen] = useState(false);
-  const [editingAddress, setEditingAddress] = useState(null);
-
-  // Control de orden
-  const [isOrderFinished, setIsOrderFinished] = useState(false);
-
-  async function loadData() {
-    setLoading(true);
-    setError(null);
-    try {
-      const [addrList, defaultAdd] = await Promise.all([
-        getShippingAddresses(),
-        getDefaultShippingAddress(),
-      ]);
-
-      setAddresses(addrList || []);
-
-      setSelectedAddress(defaultAdd);
-      setAddressSectionOpen(!defaultAdd);
-    } catch (err) {
-      setError("Unable to load addresses");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }
-
+  // An empty cart means there is nothing to sell; go back and pick something.
   useEffect(() => {
-    debugger;
-    if (!cartItems || cartItems.length === 0) {
-      if (!isOrderFinished) {
-        navigate("/cart");
-      }
+    if (!submittedRef.current && cartItems.length === 0) {
+      navigate("/cart", { replace: true });
     }
   }, [cartItems, navigate]);
 
+  /**
+   * Re-price whenever the cart or the customer changes.
+   *
+   * Selecting a client re-quotes, so the loyalty discount appears immediately and
+   * is computed by the server from that client's stored purchase count. The
+   * cashier sees the real number before committing to anything.
+   */
   useEffect(() => {
-    if (!selectedAddress) {
-      setAddressSectionOpen(true);
-    }
-  }, [selectedAddress]);
+    if (cartItems.length === 0) return undefined;
 
-  useEffect(() => {
-    let mounted = true;
-    if (mounted) loadData();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    let cancelled = false;
 
-  const handleAddressToggle = () => {
-    setShowAddressForm(false);
-    setEditingAddress(null);
-    setAddressSectionOpen((prev) => !prev);
-  };
-
-  const handleSelectAddress = (address) => {
-    setSelectedAddress(address);
-    setShowAddressForm(false);
-    setEditingAddress(null);
-    setAddressSectionOpen(false);
-  };
-
-  const handleAddressNew = () => {
-    setShowAddressForm(true);
-    setEditingAddress(null);
-    setAddressSectionOpen(true);
-  };
-
-  const handleAddressEdit = (address) => {
-    setShowAddressForm(true);
-    setEditingAddress(address);
-    setAddressSectionOpen(true);
-  };
-
-  const handleAddressDelete = (address) => {
-    let updatedAddressess = addresses.filter((add) => add._id !== address._id);
-
-    if (selectedAddress._id === address._id && updatedAddressess.length > 0) {
-      setSelectedAddress(updatedAddressess[0]);
-    } else {
-      setSelectedAddress(null);
-    }
-    setAddresses(updatedAddressess);
-  };
-
-  /*
-  const handleAddressSubmit = (formData) => {
-    let item = null;
-    let updatedItems = [];
-    if (editingAddress) {
-      item = { ...formData };
-      updatedItems = addresses.map((address) => {
-        if (address._id === item._id) {
-          address = item;
+    (async () => {
+      try {
+        const next = await quoteSale({
+          items: cartToItems(cartItems),
+          client: selectedClient?._id ?? null,
+        });
+        if (!cancelled) {
+          setQuote(next);
+          setQuoteError(null);
         }
-      });
-    } else {
-      item = { _id: new Date(), ...formData };
-      updatedItems = [...addresses, item];
-    }
-    setAddresses(updatedItems);
-  };*/
-
-  const handleAddressSubmit = (formData) => {
-    let updatedAddresses;
-    let newSelectedAddress = selectedAddress;
-
-    if (editingAddress) {
-      // Edit: Update list
-      updatedAddresses = addresses.map((addr) =>
-        addr._id === editingAddress._id ? { ...addr, ...formData } : addr,
-      );
-
-      // If editing addres was selected, update selected address state
-      // so we can immediately see the changes we made
-      if (selectedAddress?._id === editingAddress._id) {
-        newSelectedAddress = updatedAddresses.find(
-          (a) => a._id === editingAddress._id,
-        );
+      } catch (error) {
+        if (!cancelled) {
+          setQuote(null);
+          setQuoteError(error);
+        }
       }
-    } else {
-      // New: Add and update automatically
-      const newAddress = { _id: Date.now().toString(), ...formData };
-      updatedAddresses = [...addresses, newAddress];
-      newSelectedAddress = newAddress;
-    }
+    })();
 
-    setAddresses(updatedAddresses);
-    setSelectedAddress(newSelectedAddress);
-    setShowAddressForm(false);
-    setEditingAddress(null);
-    setAddressSectionOpen(false);
+    return () => {
+      cancelled = true;
+    };
+  }, [cartItems, selectedClient]);
+
+  const handleSelectClient = (client) => {
+    setSelectedClient(client);
+    setSubmitError(null);
+    // Collapse once a decision is made — including "no client", which is a real
+    // choice rather than an absence of one.
+    setClientSectionOpen(false);
   };
 
-  const formatMoney = (value) =>
-    new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: "MXN",
-    }).format(value);
+  const handleConfirmSale = async () => {
+    // Guards a double click and React 19's StrictMode double-invocation. Without
+    // it a second POST would decrement stock and bump loyalty twice.
+    if (submitting || !quote) return;
 
-  const subtotal = typeof total === "number" ? total : 0;
-  const taxRate = 0.16;
-  const shippingRate = 350;
-  const freeShippingThreshold = 1000;
+    setSubmitting(true);
+    setSubmitError(null);
 
-  const taxAmount = parseFloat((subtotal * taxRate).toFixed(2));
-  const shippingCost = subtotal >= freeShippingThreshold ? 0 : shippingRate;
-  const grandTotal = parseFloat(
-    (subtotal + taxAmount + shippingCost).toFixed(2),
+    try {
+      const sale = await createSale({
+        items: cartToItems(cartItems),
+        client: selectedClient?._id ?? null,
+        // The total the cashier is looking at. If it no longer matches, the
+        // server refuses rather than charging a different amount.
+        expected_total: quote.total_price,
+      });
+
+      submittedRef.current = true;
+      clearCart();
+      navigate(`/ticket/${sale._id}`, { replace: true });
+    } catch (error) {
+      setSubmitError(error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const errorBody = (error) => error?.original?.response?.data ?? null;
+
+  const renderSaleError = (error) => {
+    const body = errorBody(error);
+    const code = body?.code;
+
+    if (code === "INSUFFICIENT_STOCK") {
+      return (
+        <ErrorMessage>
+          <div>
+            <strong>Sin suficiente inventario:</strong>
+            <ul>
+              {(body.details ?? []).map((d) => (
+                <li key={d.product}>
+                  {d.name}: se piden {d.requested}
+                  {d.available !== undefined ? `, hay ${d.available}` : ""}
+                </li>
+              ))}
+            </ul>
+            Ajusta el carrito e intenta de nuevo.
+          </div>
+        </ErrorMessage>
+      );
+    }
+
+    if (code === "PRICE_CHANGED") {
+      return (
+        <ErrorMessage>
+          Los precios cambiaron mientras preparabas la venta. El total ahora es{" "}
+          {formatMoney(body.details?.current)}. Revisa y confirma de nuevo.
+        </ErrorMessage>
+      );
+    }
+
+    if (error?.kind === "NETWORK" || error?.kind === "TIMEOUT") {
+      return (
+        <ErrorMessage>
+          No pudimos conectar con el servidor. La venta no se registró.
+        </ErrorMessage>
+      );
+    }
+
+    return (
+      <ErrorMessage>
+        No pudimos completar la venta. La venta no se registró.
+      </ErrorMessage>
+    );
+  };
+
+  const clientSummary = selectedClient ? (
+    <div className="selected-client">
+      <p>{selectedClient.display_name}</p>
+      <p className="muted">{selectedClient.email}</p>
+    </div>
+  ) : (
+    <div className="selected-client">
+      <p>Venta sin cliente</p>
+    </div>
   );
 
-  const handleCancelAddressForm = () => {
-    setShowAddressForm(false);
-    setEditingAddress(null);
-    setAddressSectionOpen(true);
-  };
-
-  const handleCreateOrder = () => {
-    if (!cartItems || cartItems.length === 0) {
-      return;
-    }
-
-    const order = {
-      id: Date.now().toString(),
-      date: new Date().toISOString(),
-      items: cartItems.map((item) => ({
-        ...item,
-        subtotal: item.price * item.quantity,
-      })),
-      subtotal,
-      tax: taxAmount,
-      shipping: shippingCost,
-      total: grandTotal,
-      shippingAddress: selectedAddress,
-      status: "confirmed",
-    };
-
-    //Simulated persistence
-    const orders = JSON.parse(localStorage.getItem("orders") || "[]");
-    orders.push(order);
-    localStorage.setItem("orders", JSON.stringify(orders));
-
-    setIsOrderFinished(true);
-    navigate("/order-confirmation", { state: { order } });
-    clearCart();
-  };
-
-  return loading ? (
-    <div className="checkout-loading">
-      <Loading>
-        <p>Loading user information...</p>
-      </Loading>
-    </div>
-  ) : error ? (
-    <ErrorMessage>{error}</ErrorMessage>
-  ) : (
+  return (
     <div className="checkout-container">
       <div className="checkout-left">
         <SummarySection
-          title="1. Shipping address"
-          selected={selectedAddress}
-          summaryContent={
-            <div className="selected-address">
-              <p>{selectedAddress?.name}</p>
-              <p>{selectedAddress?.address1}</p>
-              <p>
-                {selectedAddress?.city}, {selectedAddress?.postalCode}
-              </p>
-            </div>
-          }
-          isExpanded={showAddressForm || addressSectionOpen || !selectedAddress}
-          onToggle={handleAddressToggle}
+          title="1. Cliente (opcional)"
+          selected={true}
+          summaryContent={clientSummary}
+          isExpanded={clientSectionOpen}
+          onToggle={() => setClientSectionOpen((open) => !open)}
         >
-          {!showAddressForm && !editingAddress ? (
-            <AddressList
-              addresses={addresses}
-              selectedAddress={selectedAddress}
-              onSelect={(address) => handleSelectAddress(address)}
-              onEdit={(address) => handleAddressEdit(address)}
-              onAdd={handleAddressNew}
-              onDelete={(address) => handleAddressDelete(address)}
-            ></AddressList>
-          ) : (
-            <AddressForm
-              onSubmit={handleAddressSubmit}
-              onCancel={handleCancelAddressForm}
-              initialValues={editingAddress || {}}
-              isEdit={!!editingAddress}
-            ></AddressForm>
-          )}
+          <ClientPicker
+            selectedClient={selectedClient}
+            onSelect={handleSelectClient}
+          />
         </SummarySection>
+
         <SummarySection
-          title="2. Order details"
+          title="2. Detalle de la venta"
           selected={true}
           isExpanded={true}
         >
-          <CartView />
+          <CartView quote={quote} />
         </SummarySection>
       </div>
+
       <div className="checkout-right">
         <div className="checkout-summary">
-          <h3>Order summary</h3>
+          <h3>Resumen</h3>
+
           <div className="summary-details">
             <p>
-              <strong>Shipping addresss: </strong>
-              {selectedAddress?.name}
+              <strong>Cliente: </strong>
+              {selectedClient ? selectedClient.display_name : "Público general"}
             </p>
+
+            {quoteError && (
+              <ErrorMessage>
+                No pudimos calcular el total. Revisa el inventario o tu conexión.
+              </ErrorMessage>
+            )}
+
+            {submitError && renderSaleError(submitError)}
+
+            {/* Three rows, all server-provided: no tax, no shipping, no estimate. */}
             <div className="order-costs">
               <p>
                 <strong>Subtotal: </strong>
-                {formatMoney(subtotal)}
+                {quote ? formatMoney(quote.subtotal) : "—"}
               </p>
-              <p>
-                <strong>IVA (16%): </strong>
-                {formatMoney(taxAmount)}
-              </p>
-              <p>
-                <strong>Shipping: </strong>
-                {formatMoney(shippingCost)}
-              </p>
-              <p>
+
+              {quote && quote.discount_rate > 0 && (
+                <p className="discount-row">
+                  <strong>
+                    Descuento ({formatPercent(quote.discount_rate)}):{" "}
+                  </strong>
+                  −{formatMoney(quote.discount_amount)}
+                </p>
+              )}
+
+              <p className="total-row">
                 <strong>Total: </strong>
-                {formatMoney(grandTotal)}
-              </p>
-              <p>
-                <strong>Estimated delivery: </strong>
-                {new Date(
-                  Date.now() + 2 * 24 * 60 * 60 * 1000,
-                ).toLocaleDateString()}
+                {quote ? formatMoney(quote.total_price) : "—"}
               </p>
             </div>
+
             <Button
-              className="play-button"
-              disabled={!cartItems || cartItems.length === 0}
+              variant="primary"
+              size="md"
+              disabled={!quote || submitting || cartItems.length === 0}
               title={
-                !cartItems || cartItems.length === 0
-                  ? "No products in cart"
-                  : "Confirm payment"
+                !quote
+                  ? "Esperando el total del servidor"
+                  : submitting
+                    ? "Registrando la venta…"
+                    : "Registrar la venta"
               }
-              onClick={handleCreateOrder}
+              onClick={handleConfirmSale}
             >
-              Confirm payment
+              <Icon name="checkCircle" size={20} />
+              <span>{submitting ? "Registrando…" : "Cobrar"}</span>
             </Button>
           </div>
         </div>

@@ -1,36 +1,46 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
-const CartContext = createContext();
+const CartContext = createContext(undefined);
 
+const STORAGE_KEY = "cart";
+
+/**
+ * The cart holds WHAT is being bought — nothing about what it costs.
+ *
+ * There is deliberately no total here. Every monetary figure comes from the
+ * backend's POST /api/sales/quote, because the server is the only thing allowed
+ * to price a sale. An earlier version of this file exposed getTotalPrice() and a
+ * duplicate calculateTotal(), which meant the screen could disagree with the
+ * actual charge and could not account for the loyalty discount at all.
+ *
+ * Items keep the product fields for display (name, stock), but the price on a
+ * cart item is never summed here — see utils/cart.js for what gets sent.
+ */
 export function CartProvider({ children }) {
-  // State initialized directly with local storage data
   const [cartItems, setCartItems] = useState(() => {
-    const savedCart = localStorage.getItem("cart");
-    return savedCart ? JSON.parse(savedCart) : [];
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      // Private browsing, blocked storage, or corrupt JSON — start empty rather
+      // than taking the whole app down over a cached cart.
+      return [];
+    }
   });
 
-  // Calculate total cost of items in cart
-  const calculateTotal = (items) => {
-    return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  };
-
-  // Update total amount
-  const [total, setTotal] = useState(() => {
-    const savedCart = localStorage.getItem("cart");
-    const items = savedCart ? JSON.parse(savedCart) : [];
-    return calculateTotal(items);
-  });
-
-  // Update local storage when there are changes in cart
+  // Persisted so a reload mid-order does not lose the sale in progress. The
+  // matching requirement is that completing or abandoning a sale clears it: see
+  // clearCart, called after a committed sale and on logout.
   useEffect(() => {
-    localStorage.setItem("cart", JSON.stringify(cartItems));
-    setTotal(calculateTotal(cartItems));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cartItems));
+    } catch {
+      // Not fatal: the cart still works for this session.
+    }
   }, [cartItems]);
 
   const removeFromCart = (productId) => {
-    setCartItems((prevItems) =>
-      prevItems.filter((item) => item._id !== productId)
-    );
+    setCartItems((prev) => prev.filter((item) => item._id !== productId));
   };
 
   const updateQuantity = (productId, newQuantity) => {
@@ -39,53 +49,42 @@ export function CartProvider({ children }) {
       return;
     }
 
-    setCartItems((prevItems) =>
-      prevItems.map((item) =>
-        item._id === productId ? { ...item, quantity: newQuantity } : item
-      )
+    setCartItems((prev) =>
+      prev.map((item) =>
+        item._id === productId ? { ...item, quantity: newQuantity } : item,
+      ),
     );
   };
 
   const addToCart = (product, quantity = 1) => {
-    setCartItems((prevItems) => {
-      const existingItem = prevItems.find((item) => item._id === product._id);
+    setCartItems((prev) => {
+      const existing = prev.find((item) => item._id === product._id);
 
-      if (existingItem) {
-        return prevItems.map((item) =>
+      if (existing) {
+        return prev.map((item) =>
           item._id === product._id
             ? { ...item, quantity: item.quantity + quantity }
-            : item
+            : item,
         );
-      } else {
-        return [...prevItems, { ...product, quantity }];
       }
+
+      return [...prev, { ...product, quantity }];
     });
   };
 
-  const clearCart = () => {
-    setCartItems([]);
-  };
+  const clearCart = () => setCartItems([]);
 
-  const getTotalItems = () => {
-    return cartItems.reduce((total, item) => total + item.quantity, 0);
-  };
-
-  const getTotalPrice = () => {
-    return cartItems.reduce(
-      (total, item) => total + item.price * item.quantity,
-      0
-    );
-  };
+  /** Number of units in the cart. A count, not money. */
+  const getTotalItems = () =>
+    cartItems.reduce((total, item) => total + item.quantity, 0);
 
   const value = {
     cartItems,
-    total: getTotalPrice(),
     addToCart,
     removeFromCart,
     updateQuantity,
     clearCart,
     getTotalItems,
-    getTotalPrice,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
@@ -93,7 +92,10 @@ export function CartProvider({ children }) {
 
 export function useCart() {
   const context = useContext(CartContext);
-  if (!context)
+  if (context === undefined) {
     throw new Error("useCart must be used within CartProvider");
+  }
   return context;
 }
+
+export default CartContext;

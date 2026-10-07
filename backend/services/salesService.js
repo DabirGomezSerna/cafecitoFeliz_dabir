@@ -153,6 +153,8 @@ export async function commitSale({ items, clientId = null, expectedTotal = null 
         name: line.name,
         quantity: line.quantity,
         price: line.unit_price,
+        // Stored so no consumer ever has to multiply money itself.
+        line_total: line.line_total,
       })),
       subtotal: quote.subtotal,
       discount: quote.discount_rate,

@@ -1,0 +1,115 @@
+.client-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.client-picker-selected {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 8px;
+  background: var(--surface-2, #fafafa);
+}
+
+.client-tier {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--success-color, #2e7d32);
+}
+
+.client-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.client-result {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  font: inherit;
+}
+
+.client-result:hover,
+.client-result:focus-visible {
+  border-color: var(--primary-color, #6f4e37);
+  background: var(--surface-2, #fafafa);
+}
+
+.client-result-name {
+  font-weight: 600;
+}
+
+.client-result-email {
+  grid-column: 1;
+  font-size: 13px;
+  color: var(--muted-color, #777);
+}
+
+.client-result-tier {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-size: 13px;
+  color: var(--success-color, #2e7d32);
+  white-space: nowrap;
+}
+
+.client-picker-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.client-create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.client-create-form h4 {
+  margin: 0;
+}
+
+.client-create-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.client-duplicate {
+  padding: 10px 12px;
+  border: 1px solid var(--warning-color, #ed6c02);
+  border-radius: 8px;
+  background: #fff8e1;
+}
+
+.client-duplicate p {
+  margin: 0 0 8px;
+}
+
+.field-error {
+  color: var(--error-color, #c62828);
+  font-size: 13px;
+}
+
+.muted {
+  color: var(--muted-color, #777);
+}
