@@ -302,6 +302,8 @@ header {
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
   min-width: 260px;
+  /* Bounds the panel so a long email ellipsises instead of widening it. */
+  max-width: 320px;
   z-index: 1000;
   animation: dropdownSlide 0.2s ease-out;
   /* The panel had no padding, so every section ran to its edges. */
@@ -314,26 +316,46 @@ header {
 }
 
 /*
- * Name above role. This was a plain `display: flex` with no direction, which laid
- * the two out side by side — it was written for the old markup, where the flex
- * children were an avatar and a details column.
+ * Name, then email, then role — stacked. This was a plain `display: flex` with no
+ * direction, which laid all three out side by side; it was written for the old
+ * markup, where the flex children were an avatar and a details column.
+ *
+ * `align-items: stretch` (the default, stated for clarity) gives each child the
+ * panel's content width, which is what lets the name and email actually ellipsis
+ * instead of widening the dropdown.
  */
 .user-profile {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 2px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 12px;
+  /* Children are nowrap + ellipsis; without this they would overflow the panel. */
+  min-width: 0;
 }
 
-/* Had no rule at all, so it rendered at body size next to the name. */
+.user-email {
+  color: var(--muted);
+  font-size: 13px;
+  /* A long address truncates rather than stretching the panel. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/*
+ * Had no rule at all, so it rendered at body size next to the name. Uppercase and
+ * letter-spaced so it reads as a label and does not blur into the email above,
+ * which is the same muted colour.
+ */
 .user-role {
   color: var(--muted);
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  margin-top: 2px;
 }
 
 .user-details {
