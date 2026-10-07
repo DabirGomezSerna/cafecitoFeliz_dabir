@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 import Alert from "@mui/material/Alert";
-import { Grid, Card, CardContent } from "@mui/material";
+import { Grid, Card, CardContent, Button, Stack } from "@mui/material";
 import { getAllProducts } from "../../services/productServices";
+import List from "../../components/List/List";
+import "./Home.css";
 
 export default function Home() {
   const [products, setProducts] = useState([]);
@@ -50,21 +52,11 @@ export default function Home() {
         <Alert severity="warning">No hay productos en el catálogo.</Alert>
       )}
       {!loading && !error && products.length > 0 && (
-        <Grid container spacing={2} columns={12}>
-          {products.map((product) => (
-            <Grid size={6}>
-              <Card
-                variant="outlined"
-                sx={{ maxWidth: 355 }}
-              >
-                <CardContent>{product.name}</CardContent>
-                <CardContent>{product.description}</CardContent>
-                <CardContent>{product.price}</CardContent>
-                <CardContent>{product.stock}</CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+        <List
+          title="Productos recomendados"
+          products={products}
+          layout="grid"
+        />
       )}
     </div>
   );

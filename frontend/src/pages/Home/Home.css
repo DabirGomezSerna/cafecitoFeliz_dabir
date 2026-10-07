@@ -1,0 +1,12 @@
+.grid-div{
+   align-items: center;
+   justify-content: left;
+}
+
+.card-button{
+    padding: 8px 16px;
+    border-radius: 8px;
+    align-self: center;
+    margin: 8px 16px;
+    color: brown;
+}

@@ -27,6 +27,8 @@ const createSale = async (req, res, next) => {
       discount = 0.1;
     } else if (client.purchases >= 8) {
       discount = 0.15;
+    } else {
+      discount = 0;
     }
 
     let subtotal = 0;
@@ -52,4 +54,4 @@ const createSale = async (req, res, next) => {
   }
 };
 
-export {getSaleById,createSale}
+export { getSaleById, createSale };
