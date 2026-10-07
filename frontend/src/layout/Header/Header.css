@@ -1,7 +1,22 @@
-header {
+/*
+ * Scoped to .header on purpose. This was a bare `header` element selector, so it
+ * also styled every other <header> in the app — the admin pages' page headings
+ * picked up this background, shadow and pale text colour, and, worse, its
+ * `position: sticky` plus `z-index: 100`.
+ *
+ * That last part is why the user dropdown rendered behind them: a sticky element
+ * with a z-index forms its own stacking context, so the admin heading became a
+ * sibling context with the SAME z-index as this bar but later in the document, and
+ * therefore painted on top. The dropdown's own z-index could not help, because it
+ * only competes inside this element's stacking context.
+ *
+ * The z-index below is consequently the one that decides whether the dropdown
+ * covers page content. Raising the dropdown's own value does nothing; raise this.
+ */
+.header {
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 900;
   background: var(--surface);
   box-shadow: var(--elev-2);
   color: rgb(231, 231, 167);

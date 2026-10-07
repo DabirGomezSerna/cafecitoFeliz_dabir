@@ -15,15 +15,31 @@
   gap: 28px;
 }
 
+/*
+ * A deliberate card. These headings previously had no styling of their own and
+ * were picking up Header.css's bare `header` element selector by accident, which
+ * gave them a square white bar, a drop shadow and pale yellow text.
+ */
+.admin-header {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r5);
+  box-shadow: var(--elev-1);
+  padding: 20px 24px;
+}
+
 .admin-header h1 {
   display: flex;
   align-items: center;
   gap: 10px;
   margin: 0;
+  /* Inherits --text, matching the section headings further down the page. */
+  color: var(--text);
 }
 
 .admin-header p {
   margin: 4px 0 0;
+  color: var(--muted);
 }
 
 .admin-table-wrap {
