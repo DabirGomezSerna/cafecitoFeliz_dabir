@@ -1,70 +1,68 @@
-# Getting Started with Create React App
+# Cafecito Feliz — frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Create React App client for the café's point of sale. See the [root ReadMe](../ReadMe.md)
+for the project overview, the permission matrix, and how to run the backend.
 
-## Available Scripts
+```bash
+npm install
+npm start      # http://localhost:3000
+npm run build
+```
 
-In the project directory, you can run:
+## Configuration
 
-### `npm start`
+`REACT_APP_API_URL` points at the backend, and defaults to
+`http://localhost:4000/api`. Copy `.env.example` to `.env` to change it.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+**CRA does not hot-reload `.env`** — restart `npm start` after editing it, or the
+old value stays compiled in.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Layout
 
-### `npm test`
+```
+src/
+  components/
+    App/            router and provider nesting
+    Cart/           cart line items
+    Checkout/       SummarySection, the collapsible step panel
+    LoginForm/      staff sign-in
+    RegisterForm/   staff sign-up (always creates a vendor)
+    List/           product grid
+    ProductCard/    one product on the menu
+    Sale/           ClientPicker — customer lookup and inline creation
+    common/         Button, Input, Badge, Icon, Loading, ErrorMessage
+  context/
+    AuthContext     session state; three-state status, see below
+    CartContext     what is in the cart — never what it costs
+  hooks/            useDebouncedValue
+  layout/           Header, Layout
+  pages/
+    Home            the only public screen
+    Login Register
+    Cart Checkout   the sale flow
+    Ticket          receipt, keyed by sale id
+    Admin/          product management and sales history
+    ProtectedRoute  route gate
+  services/         axios client and one module per resource
+  utils/            money and ticket formatting, cart to wire format
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Two rules worth knowing before editing
 
-### `npm run build`
+**No money is calculated here.** Prices, line totals, discounts and totals all
+come from the backend — `POST /api/sales/quote` for a cart in progress, and the
+stored sale for a ticket. `utils/money.js` formats numbers; it must never do
+arithmetic. The quickest way to check you have not broken this:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```bash
+grep -rnE "price\s*\*|\*\s*quantity|taxRate" src/
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+That should return nothing.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+**The session cookie is httpOnly,** so JavaScript cannot read it and there is no
+synchronous way to know whether someone is signed in. `AuthContext` answers the
+question by calling `GET /api/auth/me`, and exposes `status` as
+`"loading" | "authenticated" | "anonymous"`. `ProtectedRoute` waits during
+`"loading"` — collapsing that into `"anonymous"` would redirect a signed-in
+cashier to the login page on every hard refresh.
