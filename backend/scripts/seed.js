@@ -1,17 +1,18 @@
 /**
  * Database seed script — Cafecito Feliz
  *
- * Safe to re-run: uses findOne checks before every insert — no duplicates.
+ * Safe to re-run: checks before every insert, so no duplicates.
  * Destructive reset is opt-in: SEED_ALLOW_RESET=true
  *
  * Usage:
- *   node scripts/seed.js
- *   SEED_ALLOW_RESET=true node scripts/seed.js   (Linux/macOS)
- *   $env:SEED_ALLOW_RESET="true"; node scripts/seed.js   (PowerShell)
+ *   npm run seed
+ *   SEED_ALLOW_RESET=true node scripts/seed.js                (bash)
+ *   $env:SEED_ALLOW_RESET="true"; node scripts/seed.js        (PowerShell)
  */
 
 import dotenv from "dotenv";
 import mongoose from "mongoose";
+
 import connectDB from "../config/db.config.js";
 import Client from "../models/Client.js";
 import Product from "../models/Product.js";
@@ -26,74 +27,34 @@ const log = {
   created: (label, value) => console.log(`  [+] Created  ${label}: ${value}`),
   skipped: (label, value) =>
     console.log(`  [~] Skipped  ${label}: ${value} (already exists)`),
-  section: (title) =>
-    console.log(`\n── ${title} ─────────────────────────────`),
-  error: (label, err) =>
-    console.error(`  [!] Error    ${label}: ${err.message}`),
+  section: (title) => console.log(`\n-- ${title} ${"-".repeat(Math.max(0, 40 - title.length))}`),
 };
 
 // ---------------------------------------------------------------------------
-// Seed data — Clients
+// Seed data
 // ---------------------------------------------------------------------------
 
+/**
+ * Purchase counts are chosen to cover every discount tier, so the loyalty rules
+ * can be verified end to end straight after seeding:
+ *   0 purchases  -> 0%    (and a first sale stays at 0%)
+ *   2 purchases  -> 5%
+ *   6 purchases  -> 10%
+ *   9 purchases  -> 15%
+ */
 const CLIENTS = [
-  {
-    displayName: "Maxwell Dobron",
-    email: "maxwell.dob@gmail.com",
-    purchases: 2,
-  },
-  {
-    displayName: "John Doe",
-    email: "john.doe@example.com",
-    purchases: 0,
-  },
-  {
-    displayName: "Jane Smith",
-    email: "jane.smith@example.com",
-    purchases: 6,
-  },
+  { display_name: "Maxwell Dobron", email: "maxwell.dob@gmail.com", purchases: 2 },
+  { display_name: "John Doe", email: "john.doe@example.com", purchases: 0 },
+  { display_name: "Jane Smith", email: "jane.smith@example.com", purchases: 6 },
+  { display_name: "Lucia Herrera", email: "lucia.herrera@example.com", purchases: 9 },
 ];
 
-// ---------------------------------------------------------------------------
-// Seed data — Products (reference category by the name key used above)
-// ---------------------------------------------------------------------------
-
 const PRODUCTS = [
-  {
-    name: "Macha latte",
-    description:
-      "Te macha con leche",
-    price: 149.99,
-    stock: 15,
-  },
-  {
-    name: "Cafe Espresso",
-    description:
-      "Cafe espresso clasico.",
-    price: 199.99,
-    stock: 10,
-  },
-  {
-    name: "Mocha blanco",
-    description:
-      "Cafe mocha con chocolate blanco.",
-    price: 229.99,
-    stock: 25,
-  },
-  {
-    name: "Cafe Mocha",
-    description:
-      "Cafe mocha clasico.",
-    price: 349.99,
-    stock: 20,
-  },
-  {
-    name: "Cafe Colombiano",
-    description:
-      "Cafe colombiano autentico.",
-    price: 349.99,
-    stock: 30,
-  },
+  { name: "Macha latte", description: "Te macha con leche", price: 149.99, stock: 15 },
+  { name: "Cafe Espresso", description: "Cafe espresso clasico.", price: 199.99, stock: 10 },
+  { name: "Mocha blanco", description: "Cafe mocha con chocolate blanco.", price: 229.99, stock: 25 },
+  { name: "Cafe Mocha", description: "Cafe mocha clasico.", price: 349.99, stock: 20 },
+  { name: "Cafe Colombiano", description: "Cafe colombiano autentico.", price: 349.99, stock: 30 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -102,49 +63,38 @@ const PRODUCTS = [
 
 async function seedClients() {
   log.section("Clients");
-  const results = {};
 
-  for (const clientData of CLIENTS) {
-    const existing = await Client.findOne({ email: clientData.email });
+  for (const data of CLIENTS) {
+    const existing = await Client.findOne({ email: data.email });
 
     if (existing) {
-      log.skipped("client", clientData.email);
-      results[clientData.email] = existing;
+      log.skipped("client", data.email);
       continue;
     }
 
-    const client = await Client.create({
-      displayName: clientData.displayName,
-      email: clientData.email,
-      purchases: clientData.purchases,
-    });
+    // `purchases` is set directly here, which is deliberate and is the only place
+    // it is ever assigned rather than incremented. The API does not accept it
+    // from a request body, because it drives the loyalty discount.
+    await Client.create(data);
 
-    log.created("client", `${clientData.email} [${clientData.displayName}]`);
-    results[clientData.email] = client;
+    log.created("client", `${data.email} [${data.display_name}, ${data.purchases} compras]`);
   }
-
-  return results;
 }
 
 async function seedProducts() {
   log.section("Products");
 
-  for (const prodData of PRODUCTS) {
-    const existing = await Product.findOne({ name: prodData.name });
+  for (const data of PRODUCTS) {
+    const existing = await Product.findOne({ name: data.name });
 
     if (existing) {
-      log.skipped("product", prodData.name);
+      log.skipped("product", data.name);
       continue;
     }
 
-    await Product.create({
-      name: prodData.name,
-      description: prodData.description,
-      price: prodData.price,
-      stock: prodData.stock,
-    });
+    await Product.create(data);
 
-    log.created("product", `${prodData.name} ($${prodData.price})`);
+    log.created("product", `${data.name} ($${data.price}, stock ${data.stock})`);
   }
 }
 
@@ -153,21 +103,15 @@ async function seedProducts() {
 // ---------------------------------------------------------------------------
 
 async function resetCollections() {
-  console.log("\n  [!] SEED_ALLOW_RESET=true — deleting existing data...");
+  console.log("\n  [!] SEED_ALLOW_RESET=true - deleting existing products and clients...");
 
-  // Reverse dependency order: Products → Categories → Users
-  // Cart, Order, ShippingAddress, PaymentMethod are left untouched
-  // (user-generated data should not be wiped by default reset)
-  const result = {
-    products: await Product.deleteMany({}),
-    clients: await Client.deleteMany({}),
-  };
+  const products = await Product.deleteMany({});
+  const clients = await Client.deleteMany({});
 
   console.log(
-    `  [!] Deleted: ${result.products.deletedCount} products, ` +
-      `${result.categories.deletedCount} categories, ` +
-      `${result.clients.deletedCount} clients`,
+    `  [!] Deleted: ${products.deletedCount} products, ${clients.deletedCount} clients`,
   );
+  console.log("  [!] Sales and users are left untouched.");
 }
 
 // ---------------------------------------------------------------------------
@@ -182,18 +126,8 @@ async function printSummary() {
     Product.countDocuments(),
   ]);
 
-  console.log(`  Clients:      ${clientCount}`);
-  console.log(`  Products:   ${productCount}`);
-
-  const admin = await Client.findOne({ role: "admin" }).select(
-    "displayName email role",
-  );
-  if (admin) {
-    console.log(`\n  Admin account:`);
-    console.log(`    Email:    ${admin.email}`);
-    console.log(`    Password: Admin1234!`);
-  }
-
+  console.log(`  Clients:  ${clientCount}`);
+  console.log(`  Products: ${productCount}`);
   console.log("\n  Seed completed successfully.\n");
 }
 
@@ -215,7 +149,8 @@ async function seed() {
   await mongoose.disconnect();
 }
 
-seed().catch((err) => {
-  console.error("\n[FATAL] Seed failed:", err.message);
-  mongoose.disconnect().finally(() => process.exit(1));
+seed().catch(async (error) => {
+  console.error("\n[FATAL] Seed failed:", error.message);
+  await mongoose.disconnect().catch(() => {});
+  process.exit(1);
 });
