@@ -199,7 +199,14 @@ header {
   position: relative;
 }
 
-.user-dropdown {
+/*
+ * Anchors the absolutely positioned dropdown below this button.
+ *
+ * Without it the nearest positioned ancestor is <header> itself, which is
+ * position: sticky — so the panel's `right: 0` aligned to the header's edge
+ * rather than the avatar's, leaving it offset by the header's gutter.
+ */
+.user-menu-container {
   position: relative;
 }
 
@@ -294,23 +301,39 @@ header {
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-  min-width: 280px;
+  min-width: 260px;
   z-index: 1000;
   animation: dropdownSlide 0.2s ease-out;
-  overflow: hidden;
+  /* The panel had no padding, so every section ran to its edges. */
+  padding: 14px;
+  box-sizing: border-box;
 }
 
 .user-section {
   padding: 20px;
 }
 
+/*
+ * Name above role. This was a plain `display: flex` with no direction, which laid
+ * the two out side by side — it was written for the old markup, where the flex
+ * children were an avatar and a details column.
+ */
 .user-profile {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding-bottom: 16px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+}
+
+/* Had no rule at all, so it rendered at body size next to the name. */
+.user-role {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .user-details {
@@ -329,19 +352,12 @@ header {
   text-overflow: ellipsis;
 }
 
-.user-email {
-  color: var(--muted);
-  font-size: 13px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .user-links {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 16px;
+  gap: 2px;
+  /* Kept small: .logout-section adds its own spacing above the divider. */
+  margin-bottom: 8px;
 }
 
 .user-link {
@@ -362,14 +378,20 @@ header {
   transform: translateX(4px);
 }
 
+/* Breathing room above the divider and below the button, so it no longer sits
+   flush against the bottom of the panel. */
 .logout-section {
   border-top: 1px solid var(--border);
-  padding-top: 16px;
+  padding-top: 12px;
+  margin-top: 4px;
+  display: flex;
+  justify-content: center;
 }
 
 .logout-btn {
-  width: 100%;
-  padding: 10px 16px;
+  /* Sized to its contents and centred, rather than stretched edge to edge. */
+  width: auto;
+  padding: 9px 22px;
   background: transparent;
   border: 1px solid var(--border);
   border-radius: 8px;

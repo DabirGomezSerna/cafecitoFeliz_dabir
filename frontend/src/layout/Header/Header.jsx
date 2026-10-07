@@ -147,7 +147,6 @@ export default function Header() {
                       <div className="user-dropdown">
                         <div className="user-profile">
                           <span className="user-name">{displayName}</span>
-                          <span className="user-email">{user?.email}</span>
                           <span className="user-role">{roleLabel}</span>
                         </div>
 
