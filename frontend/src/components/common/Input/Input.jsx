@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 import "./Input.css";
 
 export default function Input({
@@ -11,7 +13,11 @@ export default function Input({
   id,
   ...rest
 }) {
-  const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
+  // useId is stable across renders. The previous Math.random() generated a fresh
+  // id every render, so the label's htmlFor stopped matching the input's id and
+  // clicking the label no longer focused the field.
+  const generatedId = useId();
+  const inputId = id || generatedId;
 
   return (
     <div className={`input-group ${className}`}>

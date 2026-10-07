@@ -40,15 +40,22 @@ export default function LoginForm() {
 
   const handleLoginError = (err) => {
     const kind = err.kind || "UNKNOWN";
-    if (kind === "CLIENT_ERROR" && err.status === 400) {
-      const msg = err.original?.response?.data?.message;
-      setErrorMessage(
-        msg === "Invalid Credentials"
-          ? "Email o contraseña incorrectos."
-          : "Usuario no registrado. ¿Quieres crear una cuenta?",
-      );
+
+    // The server answers a bad email and a bad password identically, on purpose,
+    // so this message must stay vague too — saying "no such user" would turn the
+    // login form into a way to discover which emails are registered.
+    if (kind === "UNAUTHORIZED") {
+      setErrorMessage("Email o contraseña incorrectos.");
       return;
     }
+
+    // Missing or malformed fields.
+    if (kind === "CLIENT_ERROR" && err.status === 400) {
+      setErrorMessage("Escribe tu email y contraseña.");
+      return;
+    }
+
+    // Network, timeout, server error and the rest get the shared copy.
     setErrorKind(kind);
   };
 
@@ -56,6 +63,7 @@ export default function LoginForm() {
     <div className="login-container">
       <div className="login-card">
         <h2>Iniciar Sesión</h2>
+        <p className="login-subtitle">Acceso para personal de Cafecito Feliz</p>
         {justRegistered && (
           <div className="success-message">
             Cuenta creada exitosamente. Inicia sesión con tu email y contraseña

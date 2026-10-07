@@ -1,4 +1,3 @@
-import React from "react";
 import "./Button.css";
 
 export default function Button({
@@ -9,6 +8,10 @@ export default function Button({
   variant = "primary",
   size = "base",
   className = "",
+  // Everything else is forwarded. Without this the prop list acts as a
+  // whitelist, so `title`, `aria-*` and `data-*` were silently dropped — several
+  // explanatory tooltips in the cart and checkout never actually rendered.
+  ...rest
 }) {
   const buttonClasses = [
     "btn",
@@ -25,6 +28,7 @@ export default function Button({
       className={buttonClasses}
       onClick={onClick}
       disabled={disabled}
+      {...rest}
     >
       {children}
     </button>

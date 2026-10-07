@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 import Alert from "@mui/material/Alert";
-import { Grid, Card, CardContent, Button, Stack } from "@mui/material";
 import { getAllProducts } from "../../services/productServices";
 import List from "../../components/List/List";
 import "./Home.css";
@@ -19,7 +18,6 @@ export default function Home() {
         setLoading(true);
         setError(null);
         const data = await getAllProducts();
-        console.log(data);
         if (cancelled) return;
         setProducts(data);
       } catch (err) {

@@ -1,22 +1,32 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { register } from "../../services/authService";
+
+import { useAuth } from "../../context/AuthContext";
 import Button from "../common/Button";
-import ErrorMessage from "../common/ErrorMessage/ErrorMessage";
 import Input from "../common/Input";
 import RegisterErrorMessage from "../RegisterErrorMessage/RegisterErrorMessage";
 import "./RegisterForm.css";
 
+/**
+ * Staff sign-up.
+ *
+ * Every account created here is a salesperson: the server hard-codes the
+ * "vendor" role and ignores anything this form might send about roles, so an
+ * administrator cannot be created through the app. Admins come from the seed
+ * script — see the ReadMe.
+ *
+ * Fields map to the User model: display_name, email, password. There is no phone
+ * field, because the model has nowhere to put one.
+ */
 export default function RegisterForm() {
   const navigate = useNavigate();
+  const { register } = useAuth();
 
-  // Estado para los campos de formulario
   const [form, setForm] = useState({
-    name: "",
+    display_name: "",
     email: "",
     password: "",
     confirmPassword: "",
-    phone: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -26,43 +36,36 @@ export default function RegisterForm() {
   const handleChange = (field) => (event) => {
     setForm((prev) => ({ ...prev, [field]: event.target.value }));
 
-    // Limpiar error de ese campo si lo había
+    // Clear this field's error as soon as the user starts correcting it.
     if (fieldErrors[field]) {
       setFieldErrors((prev) => ({ ...prev, [field]: null }));
     }
   };
 
-  const validate = (form) => {
+  const validate = (values) => {
     const errors = {};
 
-    // Nombre
-    if (!form.name.trim()) {
-      errors.name = "El nombre es requerido";
-    } else if (form.name.trim().length < 2) {
-      errors.name = "El nombre debe de tener al menos dos caracteres";
+    if (!values.display_name.trim()) {
+      errors.display_name = "El nombre es requerido";
+    } else if (values.display_name.trim().length < 2) {
+      errors.display_name = "El nombre debe de tener al menos dos caracteres";
     }
 
-    // Email
-    if (!form.email.trim()) {
+    if (!values.email.trim()) {
       errors.email = "El email es requerido";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
       errors.email = "El email no tiene un formato válido";
     }
 
-    // Password
-    if (!form.password.trim()) {
-      errors.password = "El password es requerido";
-    } else if (form.password.trim().length < 6) {
-      errors.password = "El password debe de tener al menos 6 caracteres";
+    // Must match the User schema's minlength of 8, or the server rejects it.
+    if (!values.password.trim()) {
+      errors.password = "La contraseña es requerida";
+    } else if (values.password.length < 8) {
+      errors.password = "La contraseña debe de tener al menos 8 caracteres";
     }
 
-    // Confirm Password
-    if (form.confirmPassword !== form.password) {
+    if (values.confirmPassword !== values.password) {
       errors.confirmPassword = "Las contraseñas no coinciden";
-    }
-
-    if (form.phone && !/^[\d\s+()-]{7,}$/.test(form.phone)) {
-      errors.phone = "El teléfono no tiene un formato válido";
     }
 
     return errors;
@@ -84,13 +87,15 @@ export default function RegisterForm() {
 
     try {
       await register({
-        name: form.name,
-        email: form.email,
+        display_name: form.display_name.trim(),
+        email: form.email.trim(),
         password: form.password,
-        phone: form.phone || undefined,
       });
+
+      // Registration does not sign you in. LoginForm reads this state to prefill
+      // the email and show a "cuenta creada" banner.
       navigate("/login", {
-        state: { justRegistered: true, email: form.email },
+        state: { justRegistered: true, email: form.email.trim() },
       });
     } catch (err) {
       handleRegisterError(err);
@@ -102,43 +107,55 @@ export default function RegisterForm() {
   const handleRegisterError = (err) => {
     const kind = err.kind || "UNKNOWN";
 
+    // The email is already taken.
+    if (kind === "CONFLICT") {
+      setFieldErrors({ email: "Este email ya está registrado" });
+      return;
+    }
+
     if (kind === "CLIENT_ERROR" && err.status === 400) {
-      const backendMessage = err.original?.response?.data?.message;
-      if (backendMessage === "User already exist") {
-        setFieldErrors({ email: "Este email ya está registrado" });
-        return;
+      const details = err.original?.response?.data?.details;
+
+      // Mongoose validation errors arrive as [{ path, msg }].
+      if (Array.isArray(details) && details.length > 0) {
+        const mapped = {};
+        details.forEach((d) => {
+          if (d.path) mapped[d.path] = d.msg;
+        });
+        if (Object.keys(mapped).length > 0) {
+          setFieldErrors(mapped);
+          return;
+        }
       }
+
       setErrorKind("BAD_REQUEST");
       return;
     }
 
-    if (kind === "VALIDATION" && err.fields) {
-      const fieldErrors = {};
-      err.fields.forEach((f) => {
-        fieldErrors[f.path || f.param] = f.msg;
-      });
-      setFieldErrors(fieldErrors);
-      return;
-    }
+    setErrorKind(kind);
   };
 
   return (
     <div className="register-container">
       <div className="register-card">
-        <h2>Crear cuenta</h2>
+        <h2>Crear cuenta de personal</h2>
+        <p className="register-subtitle">
+          Las cuentas nuevas se crean como vendedor.
+        </p>
 
         <form className="register-form" onSubmit={onSubmit} noValidate>
           <div className="form-group">
             <Input
-              id="name"
+              id="display_name"
               label="Nombre completo *"
               type="text"
-              value={form.name}
-              onChange={handleChange("name")}
+              value={form.display_name}
+              onChange={handleChange("display_name")}
               placeholder="Tu nombre"
+              autoComplete="name"
             />
-            {fieldErrors.name && (
-              <span className="field-error">{fieldErrors.name}</span>
+            {fieldErrors.display_name && (
+              <span className="field-error">{fieldErrors.display_name}</span>
             )}
           </div>
 
@@ -150,6 +167,7 @@ export default function RegisterForm() {
               value={form.email}
               onChange={handleChange("email")}
               placeholder="tu@email.com"
+              autoComplete="email"
             />
             {fieldErrors.email && (
               <span className="field-error">{fieldErrors.email}</span>
@@ -163,7 +181,8 @@ export default function RegisterForm() {
               type="password"
               value={form.password}
               onChange={handleChange("password")}
-              placeholder="Mínimo 6 caracteres"
+              placeholder="Mínimo 8 caracteres"
+              autoComplete="new-password"
             />
             {fieldErrors.password && (
               <span className="field-error">{fieldErrors.password}</span>
@@ -178,23 +197,10 @@ export default function RegisterForm() {
               value={form.confirmPassword}
               onChange={handleChange("confirmPassword")}
               placeholder="Repite la contraseña"
+              autoComplete="new-password"
             />
             {fieldErrors.confirmPassword && (
               <span className="field-error">{fieldErrors.confirmPassword}</span>
-            )}
-          </div>
-
-          <div className="form-group">
-            <Input
-              id="phone"
-              label="Teléfono (opcional)"
-              type="tel"
-              value={form.phone}
-              onChange={handleChange("phone")}
-              placeholder="+52 55 1234 5678"
-            />
-            {fieldErrors.phone && (
-              <span className="field-error">{fieldErrors.phone}</span>
             )}
           </div>
 

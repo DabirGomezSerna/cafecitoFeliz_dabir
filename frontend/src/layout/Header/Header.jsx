@@ -1,51 +1,46 @@
-import { useRef, useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-//import { useAuth } from "../../context/AuthContext";
-import Icon from "../../components/common/Icon/Icon";
+
+import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
-//import { useTheme } from "../../context/ThemeContext";
-//import Navigation from "../Navigation/Navigation";
+import Icon from "../../components/common/Icon/Icon";
 import "./Header.css";
 
+/**
+ * Header for a staff-facing POS.
+ *
+ * The cart is only shown to signed-in staff: the product list is public so anyone
+ * can read the menu, but ringing up a sale is not a thing a member of the public
+ * does, and offering a cart that dead-ends at a login screen would be worse than
+ * not offering one.
+ */
 export default function Header() {
-  const { user, isAuthenticated, logout } =
-    ({
-      displayName: "Marcus Orellio",
-      name: "Marcus Orellio",
-      email: "marcus@mail.com",
-    },
-    true,
-    () => {}); //useAuth();
+  const { user, status, isAuthenticated, isAdmin, logout } = useAuth();
+  const { getTotalItems, clearCart } = useCart();
   const navigate = useNavigate();
 
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  //const { isDarkMode, toggleTheme } = useTheme();
-  const { getTotalItems } = useCart();
-  const count = getTotalItems();
 
-  // Referencias para manejo de clicks fuera
   const userMenuRef = useRef(null);
   const mobileMenuRef = useRef(null);
-  const searchInputRef = useRef(null);
 
-  // Cerrar menús con Escape y clicks fuera
+  const count = getTotalItems();
+
+  // Close menus on Escape or an outside click.
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape") {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
         setIsUserMenuOpen(false);
         setIsMobileMenuOpen(false);
-        setIsMobileSearchOpen(false);
       }
     };
 
-    const handleClickOutside = (e) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+    const handleClickOutside = (event) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
         setIsUserMenuOpen(false);
       }
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target)) {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target)) {
         setIsMobileMenuOpen(false);
       }
     };
@@ -59,397 +54,155 @@ export default function Header() {
     };
   }, []);
 
-  // Focus en búsqueda móvil cuando se abre
+  // Prevent the page behind the mobile menu from scrolling.
   useEffect(() => {
-    if (isMobileSearchOpen && searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  }, [isMobileSearchOpen]);
-
-  // Prevenir scroll del body cuando el menú móvil está abierto
-  useEffect(() => {
-    if (isMobileMenuOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-
+    document.body.style.overflow = isMobileMenuOpen ? "hidden" : "unset";
     return () => {
       document.body.style.overflow = "unset";
     };
   }, [isMobileMenuOpen]);
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    const query = searchQuery.trim();
-
-    if (query.length === 0) {
-      navigate("/search");
-      setIsMobileSearchOpen(false);
-      setIsMobileMenuOpen(false);
-      return;
-    }
-
-    navigate(`/search?q=${encodeURIComponent(query)}`);
-    setIsMobileSearchOpen(false);
-    setIsMobileMenuOpen(false);
-  };
-
-  const handleLogin = () => {
+  /**
+   * Sign out, then empty the cart.
+   *
+   * This is where the cart reset lives because the header sits inside both
+   * providers; AuthContext is mounted outside CartProvider and cannot reach it.
+   * Clearing matters for a shared till: the next person to sign in must not
+   * inherit a half-built sale, which would otherwise survive in localStorage.
+   */
+  const handleLogout = async () => {
     setIsUserMenuOpen(false);
     setIsMobileMenuOpen(false);
-  };
-
-  const handleRegister = () => {
-    console.log("Redirigir a registro");
-    setIsUserMenuOpen(false);
-    setIsMobileMenuOpen(false);
-  };
-
-  const handleLogout = () => {
-    //logout();
-    setIsUserMenuOpen(false);
-    setIsMobileMenuOpen(false);
+    await logout();
+    clearCart();
     navigate("/");
   };
 
-  const handleUserMenuToggle = () => {
-    setIsUserMenuOpen(!isUserMenuOpen);
-  };
-
-  const handleMobileMenuOpen = () => {
-    setIsMobileMenuOpen(true);
-  };
-
-  const handleMobileMenuClose = () => {
+  const closeMenus = () => {
+    setIsUserMenuOpen(false);
     setIsMobileMenuOpen(false);
   };
 
-  const handleMobileSearchToggle = () => {
-    setIsMobileSearchOpen(!isMobileSearchOpen);
-  };
-
-  // Generar iniciales del usuario
-  const getUserInitials = (userData) => {
-    if (!userData) return "U";
-    const name =
-      userData.displayName || userData.name || userData.email || "Usuario";
+  const initials = (() => {
+    const name = user?.display_name || user?.email || "Usuario";
     return name
       .split(" ")
-      .map((n) => n[0])
+      .map((part) => part[0])
       .join("")
       .toUpperCase()
       .slice(0, 2);
-  };
+  })();
 
-  const getDisplayName = (userData) => {
-    if (!userData) return "Usuario";
-    return userData.displayName || userData.name || userData.email || "Usuario";
-  };
+  const displayName = user?.display_name || user?.email || "Usuario";
+
+  const roleLabel = user?.role === "admin" ? "Administrador" : "Vendedor";
 
   return (
     <header className="header">
-      {/* Main Header */}
       <div className="header-main">
         <div className="container">
           <div className="header-content">
-            {/* Logo */}
-            <Link to="/" className="logo">
-              cafecito Feliz
+            <Link to="/" className="logo" onClick={closeMenus}>
+              Cafecito Feliz
             </Link>
 
-            {/* Desktop Search */}
-            <div className="search-container desktop-only">
-              <form className="search-form" onSubmit={handleSearch}>
-                <input
-                  type="text"
-                  className="search-input"
-                  placeholder="Buscar productos..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <button
-                  type="submit"
-                  className="search-btn"
-                  aria-label="Buscar"
-                >
-                  <Icon name="search" size={18} />
-                </button>
-              </form>
-            </div>
+            {/* Admin navigation */}
+            {isAdmin && (
+              <nav className="header-nav desktop-only">
+                <Link to="/admin/products" className="header-nav-link">
+                  <Icon name="package" size={18} />
+                  <span>Productos</span>
+                </Link>
+                <Link to="/admin/sales" className="header-nav-link">
+                  <Icon name="fileText" size={18} />
+                  <span>Ventas</span>
+                </Link>
+              </nav>
+            )}
 
-            {/* Right Actions */}
-            {/**Cart Button**/}
             <div className="header-actions">
-              <Link
-                to="/cart"
-                className="cart-btn"
-                aria-label="Ver carrito de compras"
-              >
-                <Icon name="shoppingCart" size={24} />
-                <span className="cart-badge">{count}</span>
-              </Link>
+              {/* The cart is a staff tool, so it only appears once signed in. */}
+              {isAuthenticated && (
+                <Link to="/cart" className="cart-btn" aria-label="Ver carrito">
+                  <Icon name="shoppingCart" size={24} />
+                  {count > 0 && <span className="cart-badge">{count}</span>}
+                </Link>
+              )}
 
-              {/* Desktop User Menu */}
-              <div
-                className="user-menu-container desktop-only"
-                ref={userMenuRef}
-              >
-                <button
-                  className={`user-info ${isUserMenuOpen ? "active" : ""}`}
-                  onClick={handleUserMenuToggle}
-                  aria-label="Menú de usuario"
-                  aria-expanded={isUserMenuOpen}
-                >
-                  <div className="user-text">
-                    <span className="greeting">
-                      {isAuthenticated
-                        ? `Hola, ${getDisplayName(user)}`
-                        : "Hola, Inicia sesión"}
-                    </span>
-                    <span className="account-text">
-                      {isAuthenticated ? "Mi Cuenta" : "Cuenta y Listas"}
-                    </span>
-                  </div>
-                  <Icon
-                    name="chevronDown"
-                    size={14}
-                    className={`dropdown-arrow ${
-                      isUserMenuOpen ? "rotated" : ""
-                    }`}
-                  />
-                </button>
-
-                {/* Desktop User Dropdown */}
-                {isUserMenuOpen && (
-                  <div className="user-dropdown">
-                    {!isAuthenticated ? (
-                      <div className="auth-section">
-                        <div className="auth-header">
-                          <Icon name="user" size={24} />
-                          <span>Accede a tu cuenta</span>
-                        </div>
-                        <Link
-                          to="/login"
-                          className="auth-btn primary"
-                          onClick={handleLogin}
-                        >
-                          <Icon name="logIn" size={16} />
-                          Iniciar Sesión
-                        </Link>
-                        <button
-                          className="auth-btn secondary"
-                          onClick={handleRegister}
-                        >
-                          <Icon name="userPlus" size={16} />
-                          Crear Cuenta
-                        </button>
+              <div className="user-menu-container" ref={userMenuRef}>
+                {status === "loading" ? (
+                  <span className="muted">…</span>
+                ) : isAuthenticated ? (
+                  <>
+                    <button
+                      className={`user-info ${isUserMenuOpen ? "active" : ""}`}
+                      onClick={() => setIsUserMenuOpen((open) => !open)}
+                      aria-label="Menú de usuario"
+                      aria-expanded={isUserMenuOpen}
+                    >
+                      <div className="user-avatar">
+                        <span className="user-initials">{initials}</span>
                       </div>
-                    ) : (
-                      <div className="user-section">
+                      <div className="user-text desktop-only">
+                        <span className="greeting">{displayName}</span>
+                        <span className="account-text">{roleLabel}</span>
+                      </div>
+                      <Icon
+                        name="chevronDown"
+                        size={14}
+                        className={`dropdown-arrow ${isUserMenuOpen ? "rotated" : ""}`}
+                      />
+                    </button>
+
+                    {isUserMenuOpen && (
+                      <div className="user-dropdown">
                         <div className="user-profile">
-                          <div className="user-avatar large">
-                            <span className="user-initials">
-                              {getUserInitials(user)}
-                            </span>
-                          </div>
-                          <div className="user-details">
-                            <span className="user-name">
-                              {getDisplayName(user)}
-                            </span>
-                            <span className="user-email">{user?.email}</span>
-                          </div>
+                          <span className="user-name">{displayName}</span>
+                          <span className="user-email">{user?.email}</span>
+                          <span className="user-role">{roleLabel}</span>
                         </div>
 
-                        <div className="user-links">
-                          <Link to="/profile" className="user-link">
-                            <Icon name="user" size={16} />
-                            Mi Cuenta
-                          </Link>
-                          <Link to="/orders" className="user-link">
-                            <Icon name="package" size={16} />
-                            Mis Pedidos
-                          </Link>
-                          <Link to="/wishlist" className="user-link">
-                            <Icon name="heart" size={16} />
-                            Lista de Deseos
-                          </Link>
-                          <Link to="/settings" className="user-link">
-                            <Icon name="settings" size={16} />
-                            Configuración
-                          </Link>
-                        </div>
+                        {isAdmin && (
+                          <div className="user-links">
+                            <Link
+                              to="/admin/products"
+                              className="user-link"
+                              onClick={closeMenus}
+                            >
+                              <Icon name="package" size={16} />
+                              Gestionar productos
+                            </Link>
+                            <Link
+                              to="/admin/sales"
+                              className="user-link"
+                              onClick={closeMenus}
+                            >
+                              <Icon name="fileText" size={16} />
+                              Historial de ventas
+                            </Link>
+                          </div>
+                        )}
 
                         <div className="logout-section">
                           <button className="logout-btn" onClick={handleLogout}>
                             <Icon name="logOut" size={16} />
-                            Cerrar Sesión
+                            Cerrar sesión
                           </button>
                         </div>
                       </div>
                     )}
-                  </div>
+                  </>
+                ) : (
+                  <Link to="/login" className="auth-btn primary">
+                    <Icon name="logIn" size={16} />
+                    <span>Iniciar sesión</span>
+                  </Link>
                 )}
               </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Navigation Bar */}
-      {/*<Navigation />*/}
-
-      {/* Enhanced Mobile Menu */}
-      {isMobileMenuOpen && (
-        <div className="mobile-menu-overlay" onClick={handleMobileMenuClose}>
-          <div
-            className="mobile-menu-content"
-            ref={mobileMenuRef}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Mobile Menu Header */}
-            <div className="mobile-menu-header">
-              <div className="mobile-menu-logo">
-                <span className="logo">eShop.com</span>
-              </div>
-              <button
-                className="mobile-menu-close"
-                aria-label="Cerrar menú"
-                onClick={handleMobileMenuClose}
-              >
-                <Icon name="x" size={24} />
-              </button>
-            </div>
-
-            {/* Mobile Menu Content */}
-            <div className="mobile-menu-body">
-              {/* User Section */}
-              <div className="mobile-user-section">
-                {!isAuthenticated ? (
-                  <div className="mobile-auth-section">
-                    <div className="mobile-auth-header">
-                      <Icon name="user" size={32} />
-                      <div>
-                        <h3>¡Hola!</h3>
-                        <p>Inicia sesión para una mejor experiencia</p>
-                      </div>
-                    </div>
-                    <div className="mobile-auth-buttons">
-                      <Link
-                        to="/login"
-                        className="mobile-auth-btn primary"
-                        onClick={handleLogin}
-                      >
-                        <Icon name="logIn" size={20} />
-                        Iniciar Sesión
-                      </Link>
-                      <button
-                        className="mobile-auth-btn secondary"
-                        onClick={handleRegister}
-                      >
-                        <Icon name="userPlus" size={20} />
-                        Crear Cuenta
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mobile-user-info">
-                    <div className="mobile-user-avatar">
-                      {
-                        <span className="user-initials">
-                          {getUserInitials(user)}
-                        </span>
-                      }
-                    </div>
-                    <div className="mobile-user-details">
-                      <span className="mobile-user-name">
-                        {getUserInitials(user)}
-                      </span>
-                      <span className="mobile-user-email">{user?.email}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Categories Navigation - Principal */}
-              <nav className="mobile-categories-nav">
-                <h4>Compra por Categoría</h4>
-              </nav>
-
-              {/* User Account Links - Solo si está autenticado */}
-              {isAuthenticated && (
-                <nav className="mobile-main-nav">
-                  <h4>Mi Cuenta</h4>
-                  <Link
-                    to="/profile"
-                    className="mobile-nav-link"
-                    onClick={handleMobileMenuClose}
-                  >
-                    <Icon name="user" size={20} />
-                    Mi Perfil
-                  </Link>
-                  <Link
-                    to="/orders"
-                    className="mobile-nav-link"
-                    onClick={handleMobileMenuClose}
-                  >
-                    <Icon name="package" size={20} />
-                    Mis Pedidos
-                  </Link>
-                  <Link
-                    to="/wishlist"
-                    className="mobile-nav-link"
-                    onClick={handleMobileMenuClose}
-                  >
-                    <Icon name="heart" size={20} />
-                    Lista de Deseos
-                  </Link>
-                  <Link
-                    to="/settings"
-                    className="mobile-nav-link"
-                    onClick={handleMobileMenuClose}
-                  >
-                    <Icon name="settings" size={20} />
-                    Configuración
-                  </Link>
-                </nav>
-              )}
-
-              {/* Settings and Support */}
-              <nav className="mobile-support-nav">
-                <h4>Configuración y Ayuda</h4>
-
-                <Link
-                  to="/help"
-                  className="mobile-nav-link"
-                  onClick={handleMobileMenuClose}
-                >
-                  <Icon name="helpCircle" size={20} />
-                  Centro de Ayuda
-                </Link>
-                <Link
-                  to="/contact"
-                  className="mobile-nav-link"
-                  onClick={handleMobileMenuClose}
-                >
-                  <Icon name="messageCircle" size={20} />
-                  Contactar Soporte
-                </Link>
-              </nav>
-
-              {/* Logout */}
-              {isAuthenticated && (
-                <div className="mobile-logout-section">
-                  <button className="mobile-logout-btn" onClick={handleLogout}>
-                    <Icon name="logOut" size={20} />
-                    Cerrar Sesión
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </header>
   );
 }
