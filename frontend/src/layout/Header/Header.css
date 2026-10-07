@@ -45,11 +45,33 @@ header {
   border-bottom: 1px solid var(--border);
 }
 
+/*
+ * The header's inner wrapper. This class had no rule at all, so the bar had no
+ * horizontal gutter and its contents ran to the very edge of the viewport. Scoped
+ * under .header because "container" is a generic name and is used nowhere else.
+ */
+.header .container {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+  box-sizing: border-box;
+}
+
+/*
+ * Logo hard left, cart and user menu hard right.
+ *
+ * This was previously `grid-template-columns: auto 1fr auto`, sized for three
+ * children: logo, search box, actions. Once the search box was removed the
+ * actions fell into the flexible middle column and sat against the logo, with
+ * the third column left empty. Flex with space-between pushes them apart
+ * regardless of how many children there are.
+ */
 .header-content {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 24px;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 24px;
 }
 
 /* Logo */
@@ -442,19 +464,18 @@ header {
 
 /* Responsive */
 @media (max-width: 768px) {
+  /*
+   * Stay on one row, logo left and actions right, rather than stacking and
+   * centering. The old stacked layout existed to give the search box its own
+   * line; without it the logo plus a cart icon and an avatar fit comfortably,
+   * and `justify-self` would do nothing on a flex child anyway.
+   */
   .header-content {
-    grid-template-columns: 1fr;
     gap: 16px;
   }
 
   .logo {
-    justify-self: center;
     font-size: 24px;
-  }
-
-  .header-actions {
-    justify-self: center;
-    order: 2;
   }
 
   .action-text {
@@ -478,6 +499,11 @@ header {
 }
 
 @media (max-width: 480px) {
+  /* Keep a gutter on narrow screens, just a smaller one. */
+  .header .container {
+    padding: 0 16px;
+  }
+
   .header-actions {
     gap: 8px;
   }
