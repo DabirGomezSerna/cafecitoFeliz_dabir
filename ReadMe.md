@@ -132,9 +132,3 @@ unit. There is deliberately **no** transaction: MongoDB multi-document
 transactions require a replica set, and a standalone `mongod` — the default here —
 rejects them outright. See the header comment in
 `backend/services/salesService.js` before changing this.
-
-### Migrations
-
-`backend/scripts/migrate-client-display-name.js` repairs clients written by an
-older seed script that used `displayName` instead of the schema's `display_name`.
-Safe to re-run; supports `--dry-run`.
